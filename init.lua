@@ -8,6 +8,10 @@ local window_flags = bit32.bor(ImGuiWindowFlags.None)
 local treeview_table_flags = bit32.bor(ImGuiTableFlags.Reorderable, ImGuiTableFlags.Hideable, ImGuiTableFlags.RowBg,
     ImGuiTableFlags.Borders, ImGuiTableFlags.Resizable, ImGuiTableFlags.Sortable)
 local openGUI, drawGUI = true, true
+local angle = 0
+local size = 5
+local column_count = 9
+local direction_arrow = false
 
 local mobheader = "\ay[\agMob List\ay]"
 
@@ -39,6 +43,37 @@ local ColumnID_Loc = 5
 local ColumnID_Body = 6
 local ColumnID_Race = 7
 local ColumnID_Class = 8
+local ColumnID_Direction = 9
+
+function RotatePoint(p, cx, cy, angle)
+    local radians = math.rad(angle)
+    local cosA = math.cos(radians)
+    local sinA = math.sin(radians)
+
+    local newX = cosA * (p.x - cx) - sinA * (p.y - cy) + cx
+    local newY = sinA * (p.x - cx) + cosA * (p.y - cy) + cy
+
+    return ImVec2(newX, newY)
+end
+
+function DrawArrow(topPoint, width, height, color)
+    local draw_list = ImGui.GetWindowDrawList()
+    local p1 = ImVec2(topPoint.x, topPoint.y)
+    local p2 = ImVec2(topPoint.x + width, topPoint.y + height)
+    local p3 = ImVec2(topPoint.x - width, topPoint.y + height)
+
+    -- center
+    local center_x = (p1.x + p2.x + p3.x) / 3
+    local center_y = (p1.y + p2.y + p3.y) / 3
+
+    -- rotate
+    angle = angle + .01
+    p1 = RotatePoint(p1, center_x, center_y, angle)
+    p2 = RotatePoint(p2, center_x, center_y, angle)
+    p3 = RotatePoint(p3, center_x, center_y, angle)
+
+    draw_list:AddTriangleFilled(p1, p2, p3, ImGui.GetColorU32(color))
+end
 
 local function isType(spawn)
     return spawn.Type() == filter.Type[filter.Type_Selected]
@@ -207,6 +242,10 @@ local function displayGUI()
             filter.Type_Selected = ImGui.Combo('##TypeCombo', filter.Type_Selected, filter.Type)
             ImGui.PopItemWidth()
             ImGui.SameLine()
+            ImGui.Text("Direction")
+            ImGui.SameLine()
+            direction_arrow = ImGui.Checkbox("##DirectionArrow", direction_arrow)
+            ImGui.SameLine()
             if ImGui.Button("Clear Highlights") then
                 mq.cmd('/highlight reset')
             end
@@ -245,7 +284,12 @@ local function displayGUI()
         end
         ImGui.EndChild()
         if ImGui.BeginChild('##MobList', ImGui.GetWindowContentRegionWidth(), 0, ImGuiChildFlags.None) then
-            if ImGui.BeginTable('##List_table', 9, treeview_table_flags) then
+            if direction_arrow == true then
+                column_count = 10
+            else
+                column_count = 9
+            end
+            if ImGui.BeginTable('##List_table', column_count, treeview_table_flags) then
                 ImGui.TableSetupColumn("ID", 0, 50, ColumnID_ID)
                 ImGui.TableSetupColumn("Lvl", 0, 30, ColumnID_Lvl)
                 ImGui.TableSetupColumn("Display Name", 0, 200, ColumnID_DisplayName)
@@ -255,6 +299,9 @@ local function displayGUI()
                 ImGui.TableSetupColumn("Body Type", 0, 80, ColumnID_Body)
                 ImGui.TableSetupColumn("Race", 0, 80, ColumnID_Race)
                 ImGui.TableSetupColumn("Class", 0, 70, ColumnID_Class)
+                if direction_arrow == true then
+                    ImGui.TableSetupColumn("Direction", ImGuiTableColumnFlags.NoSort, 20, ColumnID_Direction)
+                end
                 ImGui.TableSetupScrollFreeze(0, 1)
                 ImGui.TableHeadersRow()
                 local sort_specs = ImGui.TableGetSortSpecs()
@@ -322,6 +369,13 @@ local function displayGUI()
                         ImGui.Text(item.Race())
                         ImGui.TableNextColumn()
                         ImGui.Text(item.Class())
+                        ImGui.TableNextColumn()
+                        if direction_arrow == true then
+                            local cursorScreenPos = ImGui.GetCursorScreenPosVec()
+                            angle = item.HeadingTo.Degrees() - mq.TLO.Me.Heading.Degrees()
+                            DrawArrow(ImVec2(cursorScreenPos.x + size / 2, cursorScreenPos.y), 5, 15,
+                                ImVec4(0, 255, 0, 255))
+                        end
                         ImGui.PopID()
                     end
                 end
