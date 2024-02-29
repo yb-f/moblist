@@ -1,12 +1,12 @@
 local mq = require('mq')
 local ImGui = require 'ImGui'
 
-local npc = {}
+local spawns = {}
 local running = true
 local myName = mq.TLO.Me.DisplayName()
 local window_flags = bit32.bor(ImGuiWindowFlags.None)
 local treeview_table_flags = bit32.bor(ImGuiTableFlags.Reorderable, ImGuiTableFlags.Hideable, ImGuiTableFlags.RowBg,
-    ImGuiTableFlags.Borders, ImGuiTableFlags.Resizable, ImGuiTableFlags.Sortable)
+    ImGuiTableFlags.Borders, ImGuiTableFlags.Resizable, ImGuiTableFlags.Sortable, ImGuiTableFlags.ScrollY)
 local openGUI, drawGUI = true, true
 local angle = 0
 local size = 5
@@ -108,7 +108,7 @@ local function matchFilters(spawn)
 end
 
 local function create_spawn_list()
-    npc = mq.getFilteredSpawns(matchFilters)
+    spawns = mq.getFilteredSpawns(matchFilters)
     updated_data = true
 end
 
@@ -119,8 +119,6 @@ local function main()
         create_spawn_list()
     end
 end
-
-
 
 local current_sort_specs = nil
 local function CompareWithSortSpecs(a, b)
@@ -200,9 +198,6 @@ local function CompareWithSortSpecs(a, b)
             return delta > 0
         end
     end
-
-    -- Always return a way to differentiate items.
-    -- Your own compare function may want to avoid fallback on implicit sort specs e.g. a Name compare if it wasn't already part of the sort specs.
     return a.ID() - b.ID() < 0
 end
 
@@ -210,179 +205,174 @@ local function displayGUI()
     if not openGUI then running = false end
     openGUI, drawGUI = ImGui.Begin("Mob List##" .. myName, openGUI, window_flags)
     if drawGUI and not mq.TLO.Me.Zoning() then
-        if ImGui.BeginChild('##Filters', ImGui.GetWindowContentRegionWidth(), 75, ImGuiChildFlags.None) then
-            ImGui.Text("Level Range")
-            ImGui.SameLine()
-            ImGui.PushItemWidth(45)
-            filter.LevelLow = ImGui.InputInt('##LowLvl', filter.LevelLow, 0)
-            ImGui.SameLine()
-            filter.LevelHigh = ImGui.InputInt('##HighLvl', filter.LevelHigh, 0)
-            ImGui.PopItemWidth()
-            ImGui.SameLine()
-            ImGui.Text("Name")
-            ImGui.SameLine()
-            ImGui.PushItemWidth(200)
-            filter.Name = ImGui.InputText('##Name', filter.Name, 0)
-            ImGui.PopItemWidth()
-            ImGui.SameLine()
-            filter['name_reverse'] = ImGui.Checkbox("##NameReverse", filter['name_reverse'])
-            if ImGui.IsItemHovered() then
-                ImGui.SetTooltip('Reverse Filter Name')
-            end
-            ImGui.Text("Distance")
-            ImGui.SameLine()
-            ImGui.PushItemWidth(50)
-            ImGui.SameLine()
-            filter.RangeLow = ImGui.InputInt('##RangeLow', filter.RangeLow, 0)
-            ImGui.SameLine()
-            filter.RangeHigh = ImGui.InputInt('##RangeHigh', filter.RangeHigh, 0)
-            ImGui.PopItemWidth()
-            ImGui.SameLine()
-            ImGui.PushItemWidth(85)
-            filter.Type_Selected = ImGui.Combo('##TypeCombo', filter.Type_Selected, filter.Type)
-            ImGui.PopItemWidth()
-            ImGui.SameLine()
-            ImGui.Text("Direction")
-            ImGui.SameLine()
-            direction_arrow = ImGui.Checkbox("##DirectionArrow", direction_arrow)
-            ImGui.SameLine()
-            if ImGui.Button("Clear Highlights") then
-                mq.cmd('/highlight reset')
-            end
-            ImGui.Text("Body")
-            ImGui.SameLine()
-            ImGui.PushItemWidth(100)
-            filter.Body = ImGui.InputText('##Body', filter.Body, 0)
-            ImGui.PopItemWidth()
-            ImGui.SameLine()
-            filter['body_reverse'] = ImGui.Checkbox("##BodyReverse", filter['body_reverse'])
-            if ImGui.IsItemHovered() then
-                ImGui.SetTooltip('Reverse Filter Body Type')
-            end
-            ImGui.SameLine()
-            ImGui.Text("Race")
-            ImGui.SameLine()
-            ImGui.PushItemWidth(100)
-            filter.Race = ImGui.InputText('##Race', filter.Race, 0)
-            ImGui.PopItemWidth()
-            ImGui.SameLine()
-            filter['race_reverse'] = ImGui.Checkbox("##RaceReverse", filter['race_reverse'])
-            if ImGui.IsItemHovered() then
-                ImGui.SetTooltip('Reverse Filter Race')
-            end
-            ImGui.SameLine()
-            ImGui.Text("Class")
-            ImGui.SameLine()
-            ImGui.PushItemWidth(100)
-            filter.Class = ImGui.InputText('##Class', filter.Class, 0)
-            ImGui.PopItemWidth()
-            ImGui.SameLine()
-            filter['class_reverse'] = ImGui.Checkbox("##ClassReverse", filter['class_reverse'])
-            if ImGui.IsItemHovered() then
-                ImGui.SetTooltip('Reverse Filter Class')
-            end
+        ImGui.Text("Level Range")
+        ImGui.SameLine()
+        ImGui.PushItemWidth(45)
+        filter.LevelLow = ImGui.InputInt('##LowLvl', filter.LevelLow, 0)
+        ImGui.SameLine()
+        filter.LevelHigh = ImGui.InputInt('##HighLvl', filter.LevelHigh, 0)
+        ImGui.PopItemWidth()
+        ImGui.SameLine()
+        ImGui.Text("Name")
+        ImGui.SameLine()
+        ImGui.PushItemWidth(200)
+        filter.Name = ImGui.InputText('##Name', filter.Name, 0)
+        ImGui.PopItemWidth()
+        ImGui.SameLine()
+        filter['name_reverse'] = ImGui.Checkbox("##NameReverse", filter['name_reverse'])
+        if ImGui.IsItemHovered() then
+            ImGui.SetTooltip('Reverse Filter Name')
         end
-        ImGui.EndChild()
-        if ImGui.BeginChild('##MobList', ImGui.GetWindowContentRegionWidth(), 0, ImGuiChildFlags.None) then
-            if direction_arrow == true then
-                column_count = 10
-            else
-                column_count = 9
-            end
-            if ImGui.BeginTable('##List_table', column_count, treeview_table_flags) then
-                ImGui.TableSetupColumn("ID", 0, 50, ColumnID_ID)
-                ImGui.TableSetupColumn("Lvl", 0, 30, ColumnID_Lvl)
-                ImGui.TableSetupColumn("Display Name", 0, 200, ColumnID_DisplayName)
-                ImGui.TableSetupColumn("Name", 0, 200, ColumnID_Name)
-                ImGui.TableSetupColumn("Dist", 0, 50, ColumnID_Distance)
-                ImGui.TableSetupColumn("Loc", 0, 100, ColumnID_Loc)
-                ImGui.TableSetupColumn("Body Type", 0, 80, ColumnID_Body)
-                ImGui.TableSetupColumn("Race", 0, 80, ColumnID_Race)
-                ImGui.TableSetupColumn("Class", 0, 70, ColumnID_Class)
-                if direction_arrow == true then
-                    ImGui.TableSetupColumn("Direction", ImGuiTableColumnFlags.NoSort, 20, ColumnID_Direction)
-                end
-                ImGui.TableSetupScrollFreeze(0, 1)
-                ImGui.TableHeadersRow()
-                local sort_specs = ImGui.TableGetSortSpecs()
-                if updated_data then
-                    sort_specs.SpecsDirty = true
-                    updated_data = false
-                end
-                if sort_specs then
-                    if sort_specs.SpecsDirty then
-                        for n = 1, sort_specs.SpecsCount, 1 do
-                            local sort_spec = sort_specs:Specs(n)
-                        end
+        ImGui.Text("Distance")
+        ImGui.SameLine()
+        ImGui.PushItemWidth(50)
+        ImGui.SameLine()
+        filter.RangeLow = ImGui.InputInt('##RangeLow', filter.RangeLow, 0)
+        ImGui.SameLine()
+        filter.RangeHigh = ImGui.InputInt('##RangeHigh', filter.RangeHigh, 0)
+        ImGui.PopItemWidth()
+        ImGui.SameLine()
+        ImGui.PushItemWidth(85)
+        filter.Type_Selected = ImGui.Combo('##TypeCombo', filter.Type_Selected, filter.Type)
+        ImGui.PopItemWidth()
+        ImGui.SameLine()
+        ImGui.Text("Direction")
+        ImGui.SameLine()
+        direction_arrow = ImGui.Checkbox("##DirectionArrow", direction_arrow)
+        ImGui.SameLine()
+        if ImGui.Button("Clear Highlights") then
+            mq.cmd('/highlight reset')
+        end
+        ImGui.Text("Body")
+        ImGui.SameLine()
+        ImGui.PushItemWidth(100)
+        filter.Body = ImGui.InputText('##Body', filter.Body, 0)
+        ImGui.PopItemWidth()
+        ImGui.SameLine()
+        filter['body_reverse'] = ImGui.Checkbox("##BodyReverse", filter['body_reverse'])
+        if ImGui.IsItemHovered() then
+            ImGui.SetTooltip('Reverse Filter Body Type')
+        end
+        ImGui.SameLine()
+        ImGui.Text("Race")
+        ImGui.SameLine()
+        ImGui.PushItemWidth(100)
+        filter.Race = ImGui.InputText('##Race', filter.Race, 0)
+        ImGui.PopItemWidth()
+        ImGui.SameLine()
+        filter['race_reverse'] = ImGui.Checkbox("##RaceReverse", filter['race_reverse'])
+        if ImGui.IsItemHovered() then
+            ImGui.SetTooltip('Reverse Filter Race')
+        end
+        ImGui.SameLine()
+        ImGui.Text("Class")
+        ImGui.SameLine()
+        ImGui.PushItemWidth(100)
+        filter.Class = ImGui.InputText('##Class', filter.Class, 0)
+        ImGui.PopItemWidth()
+        ImGui.SameLine()
+        filter['class_reverse'] = ImGui.Checkbox("##ClassReverse", filter['class_reverse'])
+        if ImGui.IsItemHovered() then
+            ImGui.SetTooltip('Reverse Filter Class')
+        end
 
-                        if #npc > 1 then
-                            current_sort_specs = sort_specs
-                            table.sort(npc, CompareWithSortSpecs)
-                            current_sort_specs = nil
-                        end
-                        sort_specs.SpecsDirty = false
+        if direction_arrow == true then
+            column_count = 10
+        else
+            column_count = 9
+        end
+        if ImGui.BeginTable('##List_table', column_count, treeview_table_flags) then
+            ImGui.TableSetupColumn("ID", 0, 50, ColumnID_ID)
+            ImGui.TableSetupColumn("Lvl", 0, 30, ColumnID_Lvl)
+            ImGui.TableSetupColumn("Display Name", 0, 200, ColumnID_DisplayName)
+            ImGui.TableSetupColumn("Name", 0, 200, ColumnID_Name)
+            ImGui.TableSetupColumn("Dist", 0, 50, ColumnID_Distance)
+            ImGui.TableSetupColumn("Loc", 0, 100, ColumnID_Loc)
+            ImGui.TableSetupColumn("Body Type", 0, 80, ColumnID_Body)
+            ImGui.TableSetupColumn("Race", 0, 80, ColumnID_Race)
+            ImGui.TableSetupColumn("Class", 0, 70, ColumnID_Class)
+            if direction_arrow == true then
+                ImGui.TableSetupColumn("Direction", ImGuiTableColumnFlags.NoSort, 20, ColumnID_Direction)
+            end
+            ImGui.TableSetupScrollFreeze(0, 1)
+            local sort_specs = ImGui.TableGetSortSpecs()
+            if updated_data then
+                sort_specs.SpecsDirty = true
+                updated_data = false
+            end
+            if sort_specs then
+                if sort_specs.SpecsDirty then
+                    for n = 1, sort_specs.SpecsCount, 1 do
+                        local sort_spec = sort_specs:Specs(n)
                     end
-                end
-                local clipper = ImGuiListClipper.new()
-                clipper:Begin(#npc)
-                while clipper:Step() do
-                    for row_n = clipper.DisplayStart, clipper.DisplayEnd - 1, 1 do
-                        local item = npc[row_n + 1]
-                        if item.ID() == nil or item.Level() == nil or item.DisplayName() == nil or item.Name() == nil then break end
-                        if item.Distance() == nil or item.Loc() == nil or item.Race() == nil then break end
-                        if item.Race() == nil or item.Class() == nil then break end
-                        ImGui.PushID(item)
-                        ImGui.TableNextRow()
-                        ImGui.TableNextColumn()
-                        ImGui.Selectable(tostring(item.ID()), false, ImGuiSelectableFlags.SpanAllColumns)
-                        if ImGui.IsItemHovered() then
-                            if ImGui.IsMouseReleased(ImGuiMouseButton.Right) then
-                                printf("%s \agHighlighting mobs named \ar%s", mobheader, item.DisplayName())
-                                mq.cmdf('/highlight "%s"', item.DisplayName())
-                            end
-                            if ImGui.IsMouseReleased(ImGuiMouseButton.Left) then
-                                if ImGui.IsKeyDown(ImGuiKey.LeftCtrl) or ImGui.IsKeyPressed(ImGuiKey.RightCtrl) then
-                                    printf("%s \agNavigating \aogroup \agto \ar%s \ag ID \ar%s", mobheader,
-                                        item.DisplayName(),
-                                        item.ID())
-                                    mq.cmdf('/dgae /nav id %s', item.ID())
-                                else
-                                    printf("%s \agNavigating \aoself \agto \ar%s \ag ID \ar%s", mobheader, item.Name(),
-                                        item.ID())
-                                    mq.cmdf('/nav id %s', item.ID())
-                                end
-                            end
-                        end
-                        ImGui.TableNextColumn()
-                        ImGui.Text(item.Level())
-                        ImGui.TableNextColumn()
-                        ImGui.Text(item.DisplayName())
-                        ImGui.TableNextColumn()
-                        ImGui.Text(item.Name())
-                        ImGui.TableNextColumn()
-                        ImGui.Text(string.format("%.2f", item.Distance()))
-                        ImGui.TableNextColumn()
-                        ImGui.Text(item.Loc())
-                        ImGui.TableNextColumn()
-                        ImGui.Text(item.Body())
-                        ImGui.TableNextColumn()
-                        ImGui.Text(item.Race())
-                        ImGui.TableNextColumn()
-                        ImGui.Text(item.Class())
-                        ImGui.TableNextColumn()
-                        if direction_arrow == true then
-                            local cursorScreenPos = ImGui.GetCursorScreenPosVec()
-                            angle = item.HeadingTo.Degrees() - mq.TLO.Me.Heading.Degrees()
-                            DrawArrow(ImVec2(cursorScreenPos.x + size / 2, cursorScreenPos.y), 5, 15,
-                                ImVec4(0, 255, 0, 255))
-                        end
-                        ImGui.PopID()
+                    if #spawns > 1 then
+                        current_sort_specs = sort_specs
+                        table.sort(spawns, CompareWithSortSpecs)
+                        current_sort_specs = nil
                     end
+                    sort_specs.SpecsDirty = false
                 end
             end
-            ImGui.EndTable()
+            ImGui.TableHeadersRow()
+            local clipper = ImGuiListClipper.new()
+            clipper:Begin(#spawns)
+            while clipper:Step() do
+                for row_n = clipper.DisplayStart, clipper.DisplayEnd - 1, 1 do
+                    local item = spawns[row_n + 1]
+                    if item.ID() == nil or item.Level() == nil or item.DisplayName() == nil or item.Name() == nil then break end
+                    if item.Distance() == nil or item.Loc() == nil or item.Race() == nil then break end
+                    if item.Race() == nil or item.Class() == nil then break end
+                    ImGui.PushID(item)
+                    ImGui.TableNextRow()
+                    ImGui.TableNextColumn()
+                    ImGui.Selectable(tostring(item.ID()), false, ImGuiSelectableFlags.SpanAllColumns)
+                    if ImGui.IsItemHovered() then
+                        if ImGui.IsMouseReleased(ImGuiMouseButton.Right) then
+                            printf("%s \agHighlighting mobs named \ar%s", mobheader, item.DisplayName())
+                            mq.cmdf('/highlight "%s"', item.DisplayName())
+                        end
+                        if ImGui.IsMouseReleased(ImGuiMouseButton.Left) then
+                            if ImGui.IsKeyDown(ImGuiKey.LeftCtrl) or ImGui.IsKeyPressed(ImGuiKey.RightCtrl) then
+                                printf("%s \agNavigating \aogroup \agto \ar%s \ag ID \ar%s", mobheader,
+                                    item.DisplayName(),
+                                    item.ID())
+                                mq.cmdf('/dgae /nav id %s', item.ID())
+                            else
+                                printf("%s \agNavigating \aoself \agto \ar%s \ag ID \ar%s", mobheader, item.Name(),
+                                    item.ID())
+                                mq.cmdf('/nav id %s', item.ID())
+                            end
+                        end
+                    end
+                    ImGui.TableNextColumn()
+                    ImGui.Text(item.Level())
+                    ImGui.TableNextColumn()
+                    ImGui.Text(item.DisplayName())
+                    ImGui.TableNextColumn()
+                    ImGui.Text(item.Name())
+                    ImGui.TableNextColumn()
+                    ImGui.Text(string.format("%.2f", item.Distance()))
+                    ImGui.TableNextColumn()
+                    ImGui.Text(item.Loc())
+                    ImGui.TableNextColumn()
+                    ImGui.Text(item.Body())
+                    ImGui.TableNextColumn()
+                    ImGui.Text(item.Race())
+                    ImGui.TableNextColumn()
+                    ImGui.Text(item.Class())
+                    ImGui.TableNextColumn()
+                    if direction_arrow == true then
+                        local cursorScreenPos = ImGui.GetCursorScreenPosVec()
+                        --angle = getRelativeDirection(item.HeadingTo())
+                        angle = item.HeadingTo.Degrees() - mq.TLO.Me.Heading.Degrees()
+                        DrawArrow(ImVec2(cursorScreenPos.x + size / 2, cursorScreenPos.y), 5, 15,
+                            ImVec4(0, 255, 0, 255))
+                    end
+                    ImGui.PopID()
+                end
+            end
         end
-        ImGui.EndChild()
+        ImGui.EndTable()
     end
     ImGui.End()
 end
