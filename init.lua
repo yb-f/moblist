@@ -9,7 +9,7 @@ local treeview_table_flags = bit32.bor(ImGuiTableFlags.Reorderable, ImGuiTableFl
     ImGuiTableFlags.Borders, ImGuiTableFlags.Resizable, ImGuiTableFlags.Sortable, ImGuiTableFlags.ScrollY)
 local openGUI, drawGUI = true, true
 local angle = 0
-local size = 5
+local size = 25
 local column_count = 9
 local direction_arrow = false
 
@@ -371,8 +371,8 @@ local function displayGUI()
                     ImGui.PopID()
                 end
             end
+            ImGui.EndTable()
         end
-        ImGui.EndTable()
     end
     ImGui.End()
 end
