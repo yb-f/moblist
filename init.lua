@@ -209,8 +209,14 @@ local function displayGUI()
         ImGui.SameLine()
         ImGui.PushItemWidth(45)
         filter.LevelLow = ImGui.InputInt('##LowLvl', filter.LevelLow, 0)
+        if ImGui.IsItemHovered() then
+            ImGui.SetTooltip('Lowest level to display')
+        end
         ImGui.SameLine()
         filter.LevelHigh = ImGui.InputInt('##HighLvl', filter.LevelHigh, 0)
+        if ImGui.IsItemHovered() then
+            ImGui.SetTooltip('Highest level to display')
+        end
         ImGui.PopItemWidth()
         ImGui.SameLine()
         ImGui.Text("Name")
@@ -218,6 +224,9 @@ local function displayGUI()
         ImGui.PushItemWidth(200)
         filter.Name = ImGui.InputText('##Name', filter.Name, 0)
         ImGui.PopItemWidth()
+        if ImGui.IsItemHovered() then
+            ImGui.SetTooltip('Name filter')
+        end
         ImGui.SameLine()
         filter['name_reverse'] = ImGui.Checkbox("##NameReverse", filter['name_reverse'])
         if ImGui.IsItemHovered() then
@@ -228,25 +237,43 @@ local function displayGUI()
         ImGui.PushItemWidth(50)
         ImGui.SameLine()
         filter.RangeLow = ImGui.InputInt('##RangeLow', filter.RangeLow, 0)
+        if ImGui.IsItemHovered() then
+            ImGui.SetTooltip('Minimum Distance (Distance below this number will not be shown)')
+        end
         ImGui.SameLine()
         filter.RangeHigh = ImGui.InputInt('##RangeHigh', filter.RangeHigh, 0)
+        if ImGui.IsItemHovered() then
+            ImGui.SetTooltip('Maximum Distance (Distance above this number will not be shown)')
+        end
         ImGui.PopItemWidth()
         ImGui.SameLine()
         ImGui.PushItemWidth(85)
         filter.Type_Selected = ImGui.Combo('##TypeCombo', filter.Type_Selected, filter.Type)
+        if ImGui.IsItemHovered() then
+            ImGui.SetTooltip('Type of mobs to display')
+        end
         ImGui.PopItemWidth()
         ImGui.SameLine()
         ImGui.Text("Direction")
         ImGui.SameLine()
         direction_arrow = ImGui.Checkbox("##DirectionArrow", direction_arrow)
+        if ImGui.IsItemHovered() then
+            ImGui.SetTooltip('Display directional arrow')
+        end
         ImGui.SameLine()
         if ImGui.Button("Clear Highlights") then
             mq.cmd('/highlight reset')
+        end
+        if ImGui.IsItemHovered() then
+            ImGui.SetTooltip('Clear highlighted mob list')
         end
         ImGui.Text("Body")
         ImGui.SameLine()
         ImGui.PushItemWidth(100)
         filter.Body = ImGui.InputText('##Body', filter.Body, 0)
+        if ImGui.IsItemHovered() then
+            ImGui.SetTooltip('Body type filter')
+        end
         ImGui.PopItemWidth()
         ImGui.SameLine()
         filter['body_reverse'] = ImGui.Checkbox("##BodyReverse", filter['body_reverse'])
@@ -258,6 +285,9 @@ local function displayGUI()
         ImGui.SameLine()
         ImGui.PushItemWidth(100)
         filter.Race = ImGui.InputText('##Race', filter.Race, 0)
+        if ImGui.IsItemHovered() then
+            ImGui.SetTooltip('Race filter')
+        end
         ImGui.PopItemWidth()
         ImGui.SameLine()
         filter['race_reverse'] = ImGui.Checkbox("##RaceReverse", filter['race_reverse'])
@@ -269,13 +299,15 @@ local function displayGUI()
         ImGui.SameLine()
         ImGui.PushItemWidth(100)
         filter.Class = ImGui.InputText('##Class', filter.Class, 0)
+        if ImGui.IsItemHovered() then
+            ImGui.SetTooltip('Class filter')
+        end
         ImGui.PopItemWidth()
         ImGui.SameLine()
         filter['class_reverse'] = ImGui.Checkbox("##ClassReverse", filter['class_reverse'])
         if ImGui.IsItemHovered() then
             ImGui.SetTooltip('Reverse Filter Class')
         end
-
         if direction_arrow == true then
             column_count = 10
         else
