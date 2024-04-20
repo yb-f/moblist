@@ -255,20 +255,31 @@ local function displayGUI()
     local ColorCount, StyleCount = LoadTheme.StartTheme(theme.Theme[themeID])
     openGUI, drawGUI = ImGui.Begin("Mob List##" .. myName, openGUI, window_flags)
     if drawGUI and not mq.TLO.Me.Zoning() then
-        if ImGui.Button(gIcon..'##PlayerTarg') then end
-        if ImGui.BeginPopupContextWindow() then
+        if ImGui.Button(gIcon..'##MobList') then
+            ImGui.OpenPopup('MobListPopup')
+        end
+
+        -- Place the popup context outside the button conditional to have it reactively check for the opening condition
+        if ImGui.BeginPopup('MobListPopup') then
             if ImGui.BeginMenu('ThemeZ') then
+                -- Iterate over themes to create menu items dynamically
                 for k, data in pairs(theme.Theme) do
+                    -- The third parameter is the selected condition, if true it will highlight the item
                     if ImGui.MenuItem(data.Name, '', (data.Name == themeName)) then
                         themeName = data.Name
                         themeID = k
                         settings[script].LoadTheme = themeName
+                
+                        -- Saving the settings to the configuration file using a fictional pickle function
                         mq.pickle(configFile, settings)
                     end
                 end
                 ImGui.EndMenu()
             end
             ImGui.EndPopup()
+        end
+        if ImGui.IsMouseReleased(1) and ImGui.IsItemHovered() then
+            ImGui.OpenPopup('MobListPopup')
         end
         ImGui.SameLine()
         ImGui.Text("Level Range")
