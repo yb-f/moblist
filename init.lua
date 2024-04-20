@@ -1,5 +1,7 @@
 local mq = require('mq')
 local ImGui = require 'ImGui'
+local Icons = require('mq.ICONS')
+local gIcon = Icons.MD_SETTINGS
 
 local spawns = {}
 local running = true
@@ -11,8 +13,14 @@ local openGUI, drawGUI = true, true
 local angle = 0
 local size = 25
 local column_count = 9
+local script = 'MobList'
 local direction_arrow = false
-
+local LoadTheme = require('lib.theme_loader')
+local defaults = require('lib.themes')
+local themeFile = string.format('%s/MyThemeZ.lua', mq.configDir)
+local configFile = string.format('%s/moblist.lua', mq.configDir)
+local themeName = 'Default'
+local theme, settings, defaultSettings = {}, {}, {}
 local mobheader = "\ay[\agMob List\ay]"
 
 local updated_data = false
@@ -34,6 +42,14 @@ local filter = {
     ['class_reverse'] = false
 }
 
+defaultSettings = {
+    [script] = {
+        Scale = 1.0,
+        LoadTheme = 'Default',
+        locked = false,
+    },
+}
+
 local ColumnID_ID = 0
 local ColumnID_Lvl = 1
 local ColumnID_DisplayName = 2
@@ -44,7 +60,7 @@ local ColumnID_Body = 6
 local ColumnID_Race = 7
 local ColumnID_Class = 8
 local ColumnID_Direction = 9
-
+local themeID = 1
 function RotatePoint(p, cx, cy, angle)
     local radians = math.rad(angle)
     local cosA = math.cos(radians)
@@ -73,6 +89,38 @@ function DrawArrow(topPoint, width, height, color)
     p3 = RotatePoint(p3, center_x, center_y, angle)
 
     draw_list:AddTriangleFilled(p1, p2, p3, ImGui.GetColorU32(color))
+end
+
+---comment Check to see if the file we want to work on exists.
+---@param name string -- Full Path to file
+---@return boolean -- returns true if the file exists and false otherwise
+local function File_Exists(name)
+    local f=io.open(name,"r")
+    if f~=nil then io.close(f) return true else return false end
+end
+
+local function loadThemeSettings()
+    if not File_Exists(configFile) then
+        mq.pickle(configFile, defaultSettings)
+        loadThemeSettings()
+        else
+        settings = dofile(configFile)
+    end
+    if not File_Exists(themeFile) then
+        mq.pickle(themeFile, defaults)
+        loadThemeSettings()
+    else
+        theme = dofile(themeFile)
+    end
+    if settings[script].LoadTheme == nil then
+        settings[script].LoadTheme = themeName
+    end
+    themeName = settings[script].LoadTheme or themeName
+    for tID, tData in pairs(theme.Theme) do
+        if tData['Name'] == themeName then
+            themeID = tID
+        end
+    end
 end
 
 local function isType(spawn)
@@ -114,6 +162,7 @@ end
 
 local function main()
     create_spawn_list()
+    loadThemeSettings()
     while running == true do
         mq.delay('1s')
         create_spawn_list()
@@ -203,8 +252,25 @@ end
 
 local function displayGUI()
     if not openGUI then running = false end
+    local ColorCount, StyleCount = LoadTheme.StartTheme(theme.Theme[themeID])
     openGUI, drawGUI = ImGui.Begin("Mob List##" .. myName, openGUI, window_flags)
     if drawGUI and not mq.TLO.Me.Zoning() then
+        if ImGui.Button(gIcon..'##PlayerTarg') then end
+        if ImGui.BeginPopupContextWindow() then
+            if ImGui.BeginMenu('ThemeZ') then
+                for k, data in pairs(theme.Theme) do
+                    if ImGui.MenuItem(data.Name, '', (data.Name == themeName)) then
+                        themeName = data.Name
+                        themeID = k
+                        settings[script].LoadTheme = themeName
+                        mq.pickle(configFile, settings)
+                    end
+                end
+                ImGui.EndMenu()
+            end
+            ImGui.EndPopup()
+        end
+        ImGui.SameLine()
         ImGui.Text("Level Range")
         ImGui.SameLine()
         ImGui.PushItemWidth(45)
@@ -406,6 +472,7 @@ local function displayGUI()
             ImGui.EndTable()
         end
     end
+    LoadTheme.EndTheme(ColorCount, StyleCount)
     ImGui.End()
 end
 
