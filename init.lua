@@ -25,6 +25,17 @@ local mobheader = "\ay[\agMob List\ay]"
 
 local updated_data = false
 
+local colors = {
+    red = IM_COL32(255, 0, 0, 255),
+    yellow = IM_COL32(255, 255, 0, 255),
+    white = IM_COL32(255, 255, 255, 255),
+    blue = IM_COL32(0, 0, 255, 2551),
+    lightBlue = IM_COL32(0, 255, 255, 255),
+    green = IM_COL32(0, 255, 0, 255),
+    grey = IM_COL32(158, 158, 158, 255),
+    purple = IM_COL32(255, 0, 255, 255),
+}
+
 local filter = {
     ['LevelLow'] = 1,
     ['LevelHigh'] = 135,
@@ -39,7 +50,8 @@ local filter = {
     ['name_reverse'] = false,
     ['body_reverse'] = false,
     ['race_reverse'] = false,
-    ['class_reverse'] = false
+    ['class_reverse'] = false,
+    ['conColor'] = true
 }
 
 defaultSettings = {
@@ -95,15 +107,20 @@ end
 ---@param name string -- Full Path to file
 ---@return boolean -- returns true if the file exists and false otherwise
 local function File_Exists(name)
-    local f=io.open(name,"r")
-    if f~=nil then io.close(f) return true else return false end
+    local f = io.open(name, "r")
+    if f ~= nil then
+        io.close(f)
+        return true
+    else
+        return false
+    end
 end
 
 local function loadThemeSettings()
     if not File_Exists(configFile) then
         mq.pickle(configFile, defaultSettings)
         loadThemeSettings()
-        else
+    else
         settings = dofile(configFile)
     end
     if not File_Exists(themeFile) then
@@ -250,12 +267,33 @@ local function CompareWithSortSpecs(a, b)
     return a.ID() - b.ID() < 0
 end
 
+local function getConColor(spawn)
+    local conColor = spawn.ConColor()
+    local textColor = colors.purple
+    if conColor == 'GREY' then
+        textColor = colors.grey
+    elseif conColor == 'GREEN' then
+        textColor = colors.green
+    elseif conColor == 'LIGHT BLUE' then
+        textColor = colors.lightBlue
+    elseif conColor == 'BLUE' then
+        textColor = colors.blue
+    elseif conColor == 'WHITE' then
+        textColor = colors.white
+    elseif conColor == 'YELLOW' then
+        textColor = colors.yellow
+    elseif conColor == 'RED' then
+        textColor = colors.red
+    end
+    return textColor
+end
+
 local function displayGUI()
     if not openGUI then running = false end
     local ColorCount, StyleCount = LoadTheme.StartTheme(theme.Theme[themeID])
     openGUI, drawGUI = ImGui.Begin("Mob List##" .. myName, openGUI, window_flags)
     if drawGUI and not mq.TLO.Me.Zoning() then
-        if ImGui.Button(gIcon..'##MobList') then
+        if ImGui.Button(gIcon .. '##MobList') then
             ImGui.OpenPopup('MobListPopup')
         end
 
@@ -269,12 +307,18 @@ local function displayGUI()
                         themeName = data.Name
                         themeID = k
                         settings[script].LoadTheme = themeName
-                
                         -- Saving the settings to the configuration file using a fictional pickle function
                         mq.pickle(configFile, settings)
                     end
                 end
                 ImGui.EndMenu()
+            end
+            if ImGui.MenuItem('Name as consider color', '', filter.conColor) then
+                if filter.conColor == true then
+                    filter.conColor = false
+                elseif filter.conColor == false then
+                    filter.conColor = true
+                end
             end
             ImGui.EndPopup()
         end
@@ -455,10 +499,18 @@ local function displayGUI()
                     end
                     ImGui.TableNextColumn()
                     ImGui.Text(item.Level())
-                    ImGui.TableNextColumn()
-                    ImGui.Text(item.DisplayName())
-                    ImGui.TableNextColumn()
-                    ImGui.Text(item.Name())
+                    if filter.conColor == false then
+                        ImGui.TableNextColumn()
+                        ImGui.Text(item.DisplayName())
+                        ImGui.TableNextColumn()
+                        ImGui.Text(item.Name())
+                    else
+                        local color = getConColor(item)
+                        ImGui.TableNextColumn()
+                        ImGui.TextColored(color, item.DisplayName())
+                        ImGui.TableNextColumn()
+                        ImGui.TextColored(color, item.Name())
+                    end
                     ImGui.TableNextColumn()
                     ImGui.Text(string.format("%.2f", item.Distance()))
                     ImGui.TableNextColumn()
